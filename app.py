@@ -8,53 +8,60 @@ USER_AGENT = f"ScholarlySearchTool/1.0 (mailto:{EMAIL})"
 RIDER_CRANBERRY = "#820024" 
 RIDER_PURPLE = "#572c9f"     
 
-# This forces the app to start in Light mode and sets the primary Rider color
-st.set_page_config(
-    page_title="Rider University Library Search", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Rider University Library Search", layout="wide")
 
-# Robust CSS for white background and branding
-st.markdown(f"""
-    <style>
-    /* Force Light Mode Colors */
-    :root {{
-        --primary-color: {RIDER_CRANBERRY};
-        --background-color: #ffffff;
-        --secondary-background-color: #f0f2f6;
-        --text-color: #000000;
-        --font: "sans serif";
-    }}
-    
-    .stApp {{
+# This CSS targets the specific "Black Box" areas and forces them to White
+# It also styles the Database Expander buttons to Rider Purple
+heavy_duty_css = f"""
+<style>
+    /* 1. Force the Main Background and Sidebar to White */
+    .stApp, section[data-testid="stSidebar"], .main {{
         background-color: white !important;
-    }}
-    
-    /* Headers in Rider Purple */
-    h1, h2, h3 {{
-        color: {RIDER_PURPLE} !important;
+        color: black !important;
     }}
 
-    /* Button Styling */
+    /* 2. Fix the "Black Box" Search and Multiselect inputs */
+    div[data-baseweb="input"], div[data-baseweb="select"] {{
+        background-color: white !important;
+        border: 1px solid #ccc !important;
+    }}
+    
+    input, span, div {{
+        color: black !important;
+    }}
+
+    /* 3. Style the Database Headers (Expanders) to Rider Purple */
+    .streamlit-expanderHeader {{
+        background-color: {RIDER_PURPLE} !important;
+        color: white !important;
+        border-radius: 5px !important;
+        margin-bottom: 5px !important;
+    }}
+    
+    /* Ensure the text inside the Purple header is White */
+    .streamlit-expanderHeader p {{
+        color: white !important;
+        font-weight: bold !important;
+    }}
+
+    /* 4. Main Search Button in Rider Cranberry */
     div.stButton > button {{
         background-color: {RIDER_CRANBERRY} !important;
         color: white !important;
-        border: none !important;
+        width: 100% !important;
     }}
 
-    /* Sidebar logic */
-    section[data-testid="stSidebar"] {{
-        background-color: #ffffff !important;
-        border-right: 1px solid #ddd;
+    /* 5. Result Dataframe (Table) Background Fix */
+    [data-testid="stDataFrame"] {{
+        background-color: white !important;
     }}
-    
-    /* Hide Streamlit elements */
-    header, footer {{visibility: hidden;}}
-    </style>
-    """, unsafe_allow_html=True)
 
-# --- 2. API FUNCTIONS ---
+    header, footer {{visibility: hidden !important;}}
+</style>
+"""
+st.markdown(heavy_duty_css, unsafe_allow_html=True)
+
+# --- 2. API FUNCTIONS (Standard Logic) ---
 
 def search_openalex(query):
     url = f"https://api.openalex.org/works?search={query}&mailto={EMAIL}&per-page=50"
@@ -99,7 +106,6 @@ def search_eric(query):
 # --- 3. THE INTERFACE ---
 
 def main():
-    # Logo and Title
     LOGO_URL = "https://www.rider.edu/sites/default/files/styles/max_325x325/public/2022-09/Rider_U_Logo_Cranberry_RGB.png"
     
     col1, col2 = st.columns([1, 4])
@@ -113,7 +119,7 @@ def main():
     with st.sidebar:
         st.header("Search Settings")
         
-        # Standard labels for stability
+        # Standard labels for the most robust positioning
         user_query = st.text_input("Search Topics", placeholder="Enter research topics...")
         
         catalogs = st.multiselect(
@@ -122,6 +128,7 @@ def main():
             default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"]
         )
         
+        st.write("") 
         run_search = st.button("Run Meta-Search")
 
     if run_search:
@@ -139,6 +146,7 @@ def main():
             for source, data in results_dict.items():
                 if data:
                     df = pd.DataFrame(data).drop_duplicates(subset='Title')
+                    # This Expander now uses the Purple CSS from the block above
                     with st.expander(f"📖 {source} ({len(df)} results)", expanded=True):
                         st.dataframe(
                             df,
