@@ -8,50 +8,51 @@ USER_AGENT = f"ScholarlySearchTool/1.0 (mailto:{EMAIL})"
 RIDER_CRANBERRY = "#820024" 
 RIDER_PURPLE = "#572c9f"     
 
-st.set_page_config(page_title="Rider University Library Search", layout="wide")
+# This forces the app to start in Light mode and sets the primary Rider color
+st.set_page_config(
+    page_title="Rider University Library Search", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# CSS with DOUBLE BRACES {{ }} to prevent f-string SyntaxErrors
-brand_css = f"""
-<style>
+# Robust CSS for white background and branding
+st.markdown(f"""
+    <style>
+    /* Force Light Mode Colors */
+    :root {{
+        --primary-color: {RIDER_CRANBERRY};
+        --background-color: #ffffff;
+        --secondary-background-color: #f0f2f6;
+        --text-color: #000000;
+        --font: "sans serif";
+    }}
+    
     .stApp {{
-        background-color: white !app;
-        color: black;
-    }}
-    
-    /* Fix the Search Input Box */
-    div[data-baseweb="input"] {{
         background-color: white !important;
-        border: 1px solid #ccc !important;
     }}
     
-    input {{
-        color: black !important;
-    }}
-
-    section[data-testid="stSidebar"] {{
-        background-color: #ffffff;
-        border-right: 2px solid {RIDER_CRANBERRY};
-    }}
-
-    h1, h2, h3, .stExpander p {{
+    /* Headers in Rider Purple */
+    h1, h2, h3 {{
         color: {RIDER_PURPLE} !important;
     }}
 
-    div.stButton > button:first-child {{
-        background-color: {RIDER_CRANBERRY};
-        color: white;
-        border-radius: 5px;
-        border: none;
-    }}
-    
-    div.stButton > button:first-child:hover {{
-        background-color: {RIDER_PURPLE};
+    /* Button Styling */
+    div.stButton > button {{
+        background-color: {RIDER_CRANBERRY} !important;
+        color: white !important;
+        border: none !important;
     }}
 
+    /* Sidebar logic */
+    section[data-testid="stSidebar"] {{
+        background-color: #ffffff !important;
+        border-right: 1px solid #ddd;
+    }}
+    
+    /* Hide Streamlit elements */
     header, footer {{visibility: hidden;}}
-</style>
-"""
-st.markdown(brand_css, unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 2. API FUNCTIONS ---
 
@@ -112,20 +113,16 @@ def main():
     with st.sidebar:
         st.header("Search Settings")
         
-        # Labeled sections
-        st.markdown(f"<p style='color:{RIDER_PURPLE}; font-weight:bold; margin-bottom:-10px;'>Search Topics</p>", unsafe_allow_html=True)
-        user_query = st.text_input("topic_input", label_visibility="collapsed", placeholder="Enter research topics...")
+        # Standard labels for stability
+        user_query = st.text_input("Search Topics", placeholder="Enter research topics...")
         
-        st.markdown(f"<p style='color:{RIDER_PURPLE}; font-weight:bold; margin-top:20px; margin-bottom:-10px;'>Databases</p>", unsafe_allow_html=True)
         catalogs = st.multiselect(
-            "db_select",
+            "Databases",
             ["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"],
-            default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"],
-            label_visibility="collapsed"
+            default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"]
         )
         
-        st.write("") # Spacer
-        run_search = st.button("Run Meta-Search", type="primary")
+        run_search = st.button("Run Meta-Search")
 
     if run_search:
         if not user_query:
