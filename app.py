@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 # --- 1. CONFIGURATION & BRANDING ---
-EMAIL = "your-email@example.com" 
+EMAIL = "swhitfield@rider.edu" 
 USER_AGENT = f"ScholarlySearchTool/1.0 (mailto:{EMAIL})"
 RIDER_CRANBERRY = "#820024"  # Official Rider Cranberry
 RIDER_PURPLE = "#572c9f"     # Your specified Purple hex code
