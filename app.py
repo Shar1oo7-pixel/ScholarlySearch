@@ -3,32 +3,42 @@ import requests
 import pandas as pd
 
 # --- 1. CONFIGURATION & BRANDING ---
-EMAIL = "swhitfield@rider.edu" 
+EMAIL = "your-email@example.com" 
 USER_AGENT = f"ScholarlySearchTool/1.0 (mailto:{EMAIL})"
-RIDER_CRANBERRY = "#820024"  # Official Rider Cranberry
-RIDER_PURPLE = "#572c9f"     # Your specified Purple hex code
+RIDER_CRANBERRY = "#820024" 
+RIDER_PURPLE = "#572c9f"     
 
-# Force Light Mode and Brand Colors via CSS
-st.set_page_config(page_title="Rider University Library Search", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Rider University Library Search", layout="wide")
 
+# Updated CSS for white inputs and labeled sections
 brand_css = f"""
 <style>
-    /* Force White Background */
+    /* Force White Background for everything */
     .stApp {{
         background-color: white;
         color: black;
     }}
     
+    /* Fix the Search Input Box (Search Topics) */
+    div[data-baseweb="input"] {{
+        background-color: white !important;
+        border: 1px solid #ccc !important;
+    }}
+    
+    input {{
+        color: black !important;
+        background-color: white !important;
+    }
+
     /* Style the Sidebar */
     section[data-testid="stSidebar"] {{
-        background-color: #f8f9fa;
+        background-color: #ffffff;
         border-right: 2px solid {RIDER_CRANBERRY};
     }}
 
-    /* Main Title and Headers in Rider Purple */
-    h1, h2, h3, .stExpander p {{
+    /* Headers in Rider Purple */
+    h1, h2, h3 {{
         color: {RIDER_PURPLE} !important;
-        font-family: 'Arial', sans-serif;
     }}
 
     /* Cranberry Search Button */
@@ -37,82 +47,51 @@ brand_css = f"""
         color: white;
         border-radius: 5px;
         border: none;
-        font-weight: bold;
     }}
     
     div.stButton > button:first-child:hover {{
         background-color: {RIDER_PURPLE};
-        color: white;
     }}
 
-    /* Expander Styling */
-    .streamlit-expanderHeader {{
-        background-color: white;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        color: {RIDER_PURPLE} !important;
-    }}
-
-    /* Hide Streamlit Branding */
-    #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden;}}
-    [data-testid="stHeader"] {{visibility: hidden;}}
+    /* Hide Streamlit Header/Footer */
+    header, footer {{visibility: hidden;}}
 </style>
 """
 st.markdown(brand_css, unsafe_allow_html=True)
 
-# --- 2. API FUNCTIONS (50 RESULTS MAX) ---
-
-def search_openalex(query):
-    url = f"https://api.openalex.org/works?search={query}&mailto={EMAIL}&per-page=50"
-    try:
-        res = requests.get(url, timeout=15).json()
-        return [{"Title": w.get('title'), "Year": w.get('publication_year'), "Source": "OpenAlex", "Link": w.get('doi') or w.get('id')} for w in res.get('results', [])]
-    except: return []
-
-def search_crossref(query):
-    headers = {"User-Agent": USER_AGENT}
-    url = f"https://api.crossref.org/works?query={query}&rows=50"
-    try:
-        res = requests.get(url, headers=headers, timeout=15).json()
-        items = res.get('message', {}).get('items', [])
-        return [{"Title": i.get('title', ['No Title'])[0], "Year": i.get('issued', {}).get('date-parts', [[None]])[0][0], "Source": "CrossRef", "Link": i.get('URL')} for i in items]
-    except: return []
-
-def search_pubmed(query):
-    base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-    try:
-        s_res = requests.get(f"{base_url}esearch.fcgi?db=pubmed&term={query}&retmax=50&retmode=json", timeout=15).json()
-        ids = ",".join(s_res.get('esearchresult', {}).get('idlist', []))
-        if not ids: return []
-        sum_res = requests.get(f"{base_url}esummary.fcgi?db=pubmed&id={ids}&retmode=json", timeout=15).json()
-        return [{"Title": sum_res['result'][uid].get('title'), "Year": sum_res['result'][uid].get('pubdate', '')[:4], "Source": "PubMed", "Link": f"https://pubmed.ncbi.nlm.nih.gov/{uid}/"} for uid in s_res['esearchresult']['idlist'] if 'title' in sum_res['result'][uid]]
-    except: return []
-
-def search_loc(query):
-    url = f"https://www.loc.gov/search/?q={query}&fo=json&count=50"
-    try:
-        res = requests.get(url, timeout=15).json()
-        return [{"Title": i.get('title'), "Year": i.get('date')[:4] if i.get('date') else "n.d.", "Source": "Lib of Congress", "Link": i.get('url')} for i in res.get('results', [])]
-    except: return []
-
-def search_eric(query):
-    url = f"https://api.ies.ed.gov/eric/?search={query}&format=json&rows=50"
-    try:
-        res = requests.get(url, timeout=15).json()
-        return [{"Title": h.get('title'), "Year": h.get('pubyear'), "Source": "ERIC", "Link": f"https://eric.ed.gov/?id={h.get('id')}"} for h in res.get('hits', [])]
-    except: return []
+# --- 2. API FUNCTIONS (Remaining the same) ---
+# [Keep your search_openalex, search_crossref, search_pubmed, search_loc, search_eric functions here]
 
 # --- 3. THE INTERFACE ---
 
 def main():
-    st.title("🏇 Rider University Library: Multi-Catalog Search")
+    # LOGO SECTION
+    # You can replace this URL with a Rider University Library logo URL
+    LOGO_URL = "https://www.rider.edu/sites/default/files/styles/max_325x325/public/2022-09/Rider_U_Logo_Cranberry_RGB.png"
     
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        st.image(LOGO_URL, width=150)
+    with col2:
+        st.title("University Library Multi-Catalog Search")
+    
+    st.divider()
+
     with st.sidebar:
         st.header("Search Settings")
-        user_query = st.text_input("Keywords:", placeholder="Enter research topics...")
-        catalogs = st.multiselect("Select Databases:", ["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"], default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"])
+        
+        # Labeling the input boxes clearly
+        st.write("**Search Topics**")
+        user_query = st.text_input("Enter keywords:", label_visibility="collapsed", placeholder="e.g., Higher Education Trends")
+        
+        st.write("**Databases**")
+        catalogs = st.multiselect(
+            "Select to search:",
+            ["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"],
+            default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"],
+            label_visibility="collapsed"
+        )
+        
         run_search = st.button("Run Meta-Search", type="primary")
 
     if run_search:
@@ -130,7 +109,6 @@ def main():
             for source, data in results_dict.items():
                 if data:
                     df = pd.DataFrame(data).drop_duplicates(subset='Title')
-                    # Expanders show the title in Rider Purple
                     with st.expander(f"📖 {source} ({len(df)} results)", expanded=True):
                         st.dataframe(
                             df,
@@ -138,8 +116,6 @@ def main():
                             use_container_width=True,
                             hide_index=True
                         )
-                else:
-                    st.info(f"No results found for {source}.")
 
 if __name__ == "__main__":
     main()
