@@ -9,7 +9,7 @@ USER_AGENT = f"ScholarlySearchTool/1.0 (mailto:{EMAIL})"
 
 st.set_page_config(page_title="Library Research Portal", layout="wide")
 
-# This CSS hides the Streamlit header/footer for a cleaner "embedded" look in LibGuides
+# CSS to hide the Streamlit header, footer, and menu for a clean LibGuide embed
 hide_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -58,12 +58,13 @@ def search_pubmed(query):
         results = []
         for uid in s_res['esearchresult']['idlist']:
             item = sum_res.get('result', {}).get(uid, {})
-            results.append({
-                "Title": item.get('title'),
-                "Year": item.get('pubdate', '')[:4],
-                "Source": "PubMed",
-                "Link": f"https://pubmed.ncbi.nlm.nih.gov/{uid}/"
-            })
+            if 'title' in item:
+                results.append({
+                    "Title": item.get('title'),
+                    "Year": item.get('pubdate', '')[:4],
+                    "Source": "PubMed",
+                    "Link": f"https://pubmed.ncbi.nlm.nih.gov/{uid}/"
+                })
         return results
     except: return []
 
@@ -73,10 +74,23 @@ def search_loc(query):
         res = requests.get(url, timeout=10).json()
         return [{
             "Title": i.get('title'),
-            "Year": i.get('date')[0:4] if i.get('date') else "n.d.",
+            "Year": i.get('date')[:4] if i.get('date') else "n.d.",
             "Source": "Lib of Congress",
             "Link": i.get('url')
         } for i in res.get('results', [])]
+    except: return []
+
+def search_eric(query):
+    url = f"https://api.ies.ed.gov/eric/?search={query}&format=json&rows=10"
+    try:
+        res = requests.get(url, timeout=10).json()
+        hits = res.get('hits', [])
+        return [{
+            "Title": h.get('title'),
+            "Year": h.get('pubyear'),
+            "Source": "ERIC",
+            "Link": f"https://eric.ed.gov/?id={h.get('id')}"
+        } for h in hits]
     except: return []
 
 # --- 3. THE WEB INTERFACE ---
@@ -90,8 +104,8 @@ def main():
         
         catalogs = st.multiselect(
             "Select Databases:",
-            ["OpenAlex", "CrossRef", "PubMed", "Library of Congress"],
-            default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress"]
+            ["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"],
+            default=["OpenAlex", "CrossRef", "PubMed", "Library of Congress", "ERIC"]
         )
         
         run_search = st.button("Search All Catalogs", type="primary")
@@ -110,22 +124,30 @@ def main():
                     all_results.extend(search_pubmed(user_query))
                 if "Library of Congress" in catalogs:
                     all_results.extend(search_loc(user_query))
+                if "ERIC" in catalogs:
+                    all_results.extend(search_eric(user_query))
 
             if all_results:
+                # Merge and remove duplicates
                 df = pd.DataFrame(all_results).drop_duplicates(subset='Title')
-                st.success(f"Found {len(df)} unique results.")
+                st.success(f"Found {len(df)} unique results across selected catalogs.")
                 
+                # Interactive Data Table
                 st.dataframe(
                     df,
-                    column_config={"Link": st.column_config.LinkColumn("View Record")},
+                    column_config={
+                        "Link": st.column_config.LinkColumn("View Record"),
+                        "Year": st.column_config.TextColumn("Year")
+                    },
                     use_container_width=True,
                     hide_index=True
                 )
                 
+                # CSV Export
                 csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("Download CSV", data=csv, file_name="results.csv", mime="text/csv")
+                st.download_button("Download Results (CSV)", data=csv, file_name="search_results.csv", mime="text/csv")
             else:
-                st.warning("No results found. Try different keywords.")
+                st.warning("No results found. Try adjusting your keywords.")
 
 if __name__ == "__main__":
     main()
